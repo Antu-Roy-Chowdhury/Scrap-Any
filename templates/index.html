@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-white shadow-md py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <a href="https://brainstation-23.com/" target="_blank">
+                <img src="https://brainstation-23.com/wp-content/uploads/2024/08/bs23_logo-250x40.png" alt="Brain Station 23" class="h-10">
+            </a>
+            <img src="{{ url_for('static', filename='ruet.png') }}" alt="RUET Logo" class="h-12">
+        </div>
+    </header>
+<div class="flex-grow mx-10 ">
+    <!-- Loading Overlay -->
+    <div id="loading" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="flex items-center space-x-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500"></div>
+            <span class="text-white text-lg">Scraping...</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-6 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8" style="color: #1090C2;">Web Scraper</h1>
+
+        <!-- Form -->
+        <form id="scrape-form" class="max-w-xl mx-auto bg-white p-6 rounded-xl shadow-lg fade-in">
+            <div class="mb-5">
+                <label for="url" id="url-label" class="block text-lg font-semibold text-gray-700 mb-2">Enter URL or Movie/Book/Product Name:</label>
+                <input type="text" id="url" name="url" required 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                       placeholder="e.g., https://example.com or 'Inception'">
+            </div>
+            <div class="mb-5">
+                <label for="data_type" class="block text-lg font-semibold text-gray-700 mb-2">Select Data Type:</label>
+                <select name="data_type" id="data_type" required 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    <option value="" disabled selected>Select Data Type</option>
+                    <option value="table">Tables</option>
+                    <option value="image">Images</option>
+                    <option value="movie">Movie Details</option>
+                    <option value="book">Book Details</option>
+                    <option value="video">Videos</option>
+                    <option value="ebay">eBay Products</option>
+                    <option value="news">News Headlines</option>
+                    <option value="pdf">PDF Files</option>
+                </select>
+            </div>
+            <button type="submit" class="w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Scrape Now</button>
+        </form>
+        <div id="api-link-container" class="hidden mt-5">
+            <label for="api_link" class="block text-lg font-semibold text-gray-700 mb-2">Enter API Link to Fetch Data:</label>
+            <input type="text" id="api_link" name="api_link" 
+                   class="w-10/12 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                   placeholder="e.g., https://api.example.com/store-data">
+            <button id="send-api-link" class=" py-3 px-5 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors mt-3">Send Data to API</button>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results" class="mt-8"></div>
+
+        <!-- History -->
+        {% if history %}
+            <section class="mt-8 fade-in">
+                <h2 class="text-2xl font-semibold mb-4">Recent Searches</h2>
+                <ul id="history-list" class="bg-white p-4 rounded-xl shadow-lg space-y-2">
+                    {% for item in history %}
+                        <li class="text-gray-700">{{ item.url }} ({{ item.data_type|capitalize }})</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+    </main>
+
+    <!-- PDF Modal -->
+    <div id="pdfInfoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <h3 class="text-xl font-semibold mb-4">PDF Information</h3>
+            <div id="pdfInfoContent" class="flex-1 overflow-y-auto">
+                <p><strong>Title:</strong> <span id="pdfTitle">N/A</span></p>
+                <p><strong>Author:</strong> <span id="pdfAuthor">N/A</span></p>
+                <p><strong>Page Count:</strong> <span id="pdfPageCount">N/A</span></p>
+                <p class="mt-2"><strong>Text:</strong></p>
+                <div id="pdfText" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border"></div>
+            </div>
+            <button onclick="closeModal()" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Close</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+</div>
+<footer class="bg-gray-800 text-white py-4">
+    <div class="container mx-auto px-6 text-center">
+        <p>© 2025 Web Scraper. All rights reserved by <i><a href="https://github.com/jh4009/Web-Scraping">Jahid Hasan & Team</a></i>.</p>
+    </div>
+</footer>
+
+    <script>
+        const form = document.getElementById('scrape-form');
+        const resultsDiv = document.getElementById('results');
+        const historyList = document.getElementById('history-list') || document.createElement('ul');
+        const apiLinkContainer = document.getElementById('api-link-container');
+        const sendApiLinkButton = document.getElementById('send-api-link');
+
+        async function scrapeData(formData) {
+            document.getElementById('loading').classList.remove('hidden');
+            resultsDiv.innerHTML = '';
+    
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.add('hidden');
+    
+                if (!data.success) {
+                    resultsDiv.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg text-center fade-in">${data.error}</div>`;
+                    return;
+                }
+    
+                // Update history
+                const historyItem = `${formData.get('url')} (${formData.get('data_type').charAt(0).toUpperCase() + formData.get('data_type').slice(1)})`;
+                const li = document.createElement('li');
+                li.className = 'text-gray-700';
+                li.textContent = historyItem;
+                historyList.insertBefore(li, historyList.firstChild);
+                if (historyList.children.length > 5) historyList.removeChild(historyList.lastChild);
+    
+                // Render results based on data type
+                if (data.tables) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.tables.length} Tables</h2>`;
+                    html += `<div class="bg-white p-4 rounded-xl shadow-lg sticky top-0 z-10">`;
+                    html += `<select id="table-select" multiple size="5" class="w-full p-3 border border-gray-300 rounded-lg mb-4">`;
+                    data.tables.forEach((_, i) => html += `<option value="${i}">Table ${i + 1}</option>`);
+                    html += `</select>`;
+                    html += `<button id="show-tables" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Show Selected</button>`;
+                    html += `<form id="export-csv-form" method="POST" action="/export_csv" class="mt-4"><input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="api_link" value="${formData.get('api_link')}"></form>`;
+                    html += `</div>`;
+                    html += `<div id="table-results" class="mt-4"></div>`;
+                    resultsDiv.innerHTML = html;
+    
+                    const tableResultsDiv = document.getElementById('table-results');
+                    const exportForm = document.getElementById('export-csv-form');
+    
+                    function renderSelectedTables() {
+                        const selected = Array.from(document.getElementById('table-select').selectedOptions).map(opt => parseInt(opt.value));
+                        let tableHtml = '';
+                        selected.forEach(idx => {
+                            tableHtml += `<h3 class="text-xl font-semibold mt-6">Table #${idx + 1}</h3>`;
+                            tableHtml += `<table class="min-w-full border-collapse bg-white rounded-lg shadow-lg">`;
+                            tableHtml += `<thead class="bg-gray-200"><tr>`;
+                            data.tables[idx][0].forEach(col => tableHtml += `<th class="border border-gray-300 p-3 text-left">${col}</th>`);
+                            tableHtml += `</tr></thead><tbody>`;
+                            data.tables[idx].slice(1).forEach(row => {
+                                tableHtml += `<tr class="hover:bg-gray-50">`;
+                                row.forEach(cell => tableHtml += `<td class="border border-gray-300 p-3">${cell}</td>`);
+                                tableHtml += `</tr>`;
+                            });
+                            tableHtml += `</tbody></table>`;
+                        });
+                        tableResultsDiv.innerHTML = tableHtml;
+                        exportForm.innerHTML = `<input type="hidden" name="url" value="${formData.get('url')}">` + 
+                                               `<input type="hidden" name="api_link" value="${formData.get('api_link')}">` +
+                                               selected.map(idx => `<input type="hidden" name="table_number" value="${idx}">`).join('') +
+                                               (selected.length ? `<button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Export as CSV</button>` : '');
+                    }
+                    document.getElementById('show-tables').addEventListener('click', renderSelectedTables);
+                    document.getElementById('table-select').addEventListener('change', renderSelectedTables);
+                } else if (data.images) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.images.length} Images (Total: ${data.total})</h2>`;
+                    html += `<form id="image-filter" class="bg-white p-4 rounded-xl shadow-lg">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="data_type" value="image"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">`;
+                    html += `<div><label class="block text-lg font-semibold mb-2">Number of Images:</label>`;
+                    html += `<input type="number" name="num_items" value="${data.images.length}" min="1" max="${data.total}" class="w-full p-3 border border-gray-300 rounded-lg">`;
+                    html += `<p id="num-items-error" class="text-red-500 text-sm mt-1 hidden">Number must be between 1 and ${data.total}.</p></div>`;
+                    html += `<div><label class="block text-lg font-semibold mb-2">Format:</label>`;
+                    html += `<select name="image_format" class="w-full p-3 border border-gray-300 rounded-lg">`;
+                    html += `<option value="all" ${data.image_format === 'all' ? 'selected' : ''}>All</option>`;
+                    html += `<option value="png" ${data.image_format === 'png' ? 'selected' : ''}>PNG</option>`;
+                    html += `<option value="jpg" ${data.image_format === 'jpg' ? 'selected' : ''}>JPG</option>`;
+                    html += `</select></div></div>`;
+                    html += `<div class="flex space-x-4">`;
+                    html += `<button type="submit" class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Display</button>`;
+                    html += `<button type="submit" form="export-images-form" class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Export as ZIP</button>`;
+                    html += `</div></form>`;
+                    html += `<form id="export-images-form" method="POST" action="/export_images" class="hidden">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="image_format" value="${data.image_format}"><input type="hidden" name="num_items" value="${data.images.length}"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `</form>`;
+                    html += `<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">`;
+                    data.images.forEach(image => {
+                        html += `<div class="bg-white p-4 rounded-xl shadow-lg w-85 h-[380px] flex flex-col justify-between">`;
+                        html += `<img src="${image[0]}" alt="${image[1]}" class="w-full h-56 rounded-lg object-cover" loading="lazy">`;
+                        html += `<p class="mt-2 text-gray-700 text-center text-sm flex-1 overflow-hidden text-ellipsis">${image[1]}</p>`;
+                        html += `<div class="mt-2 flex justify-center">`;
+                        html += `<a href="${image[0]}" target="_blank"><button class="py-1 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 w-full">View</button></a>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                    resultsDiv.innerHTML = html;
+                
+                    const imageFilterForm = document.getElementById('image-filter');
+                    const numItemsInput = imageFilterForm.querySelector('input[name="num_items"]');
+                    const exportForm = document.getElementById('export-images-form');
+                    const numItemsError = document.getElementById('num-items-error');
+                
+                    numItemsInput.addEventListener('input', () => {
+                        const value = parseInt(numItemsInput.value);
+                        const max = parseInt(numItemsInput.max);
+                        if (value > max) {
+                            numItemsError.classList.remove('hidden');
+                            numItemsInput.classList.add('border-red-500');
+                        } else {
+                            numItemsError.classList.add('hidden');
+                            numItemsInput.classList.remove('border-red-500');
+                            exportForm.querySelector('input[name="num_items"]').value = value;
+                        }
+                    });
+                
+                    imageFilterForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const value = parseInt(numItemsInput.value);
+                        const max = parseInt(numItemsInput.max);
+                        if (value > max) {
+                            numItemsError.classList.remove('hidden');
+                            numItemsInput.classList.add('border-red-500');
+                            return;
+                        }
+                        if (e.submitter.textContent === "Update Display") {
+                            scrapeData(new FormData(e.target));
+                        }
+                    });
+                } else if (data.movie_data) {
+                    const m = data.movie_data;
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Movie Details</h2>`;
+                    html += `<div class="bg-white p-6 rounded-xl shadow-lg flex flex-col md:flex-row gap-4">`;
+                    html += `<img src="${m.poster_url}" alt="${m.name}" class="w-48 h-auto rounded-lg object-cover">`;
+                    html += `<div><p><strong>Name:</strong> ${m.name}</p><p><strong>Year:</strong> ${m.year}</p>`;
+                    html += `<p><strong>Rating:</strong> ${m.rating}</p><p><strong>Runtime:</strong> ${m.runtime}</p>`;
+                    html += `<p><strong>Plot:</strong> ${m.plot}</p>`;
+                    html += `<p><strong>Genre:</strong> ${m.genre}</p>`;
+                    html += `<a href="${m.movie_link}" target="_blank" class="text-blue-500 hover:underline"><button class="mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-blue-600">View on IMDB</button></a> </div></div></div></div>`;
+                    resultsDiv.innerHTML = html;
+                } else if (data.book_data) {
+                    const b = data.book_data;
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Book Details</h2>`;
+                    html += `<div class="bg-white p-6 rounded-xl shadow-lg flex flex-col md:flex-row gap-4">`;
+                    html += `<img src="${b.cover_url}" alt="${b.name}" class="w-48 h-auto rounded-lg object-cover">`;
+                    html += `<div><p><strong>Title:</strong> ${b.name}</p><p><strong>Author:</strong> ${b.author}</p>`;
+                    html += `<p><strong>Year:</strong> ${b.year}</p><p><strong>Rating:</strong> ${b.rating}</p>`;
+                    html += `<p><strong>Description:</strong> ${b.description}</p>`;
+                    html += `<a href="${b.book_link}" target="_blank" class="text-blue-500 hover:underline"><button class="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-blue-600">View on Open Library</button></a></div>`;
+                    html += `</div>`;
+                    resultsDiv.innerHTML = html;
+                } if (data.videos) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.videos.length} Videos (Total: ${data.total})</h2>`;
+                    html += `<form id="video-filter" class="bg-white p-4 rounded-xl shadow-lg">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="data_type" value="video"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">`;
+                    html += `<div><label class="block text-lg font-semibold mb-2">Number of Videos:</label>`;
+                    html += `<input type="number" name="num_items" value="${data.videos.length}" min="1" max="${data.total}" class="w-full p-3 border border-gray-300 rounded-lg"></div>`;
+                    html += `<div><label class="block text-lg font-semibold mb-2">Format:</label>`;
+                    html += `<select name="video_format" class="w-full p-3 border border-gray-300 rounded-lg">`;
+                    html += `<option value="all" ${data.video_format === 'all' ? 'selected' : ''}>All</option>`;
+                    html += `<option value="mp4" ${data.video_format === 'mp4' ? 'selected' : ''}>MP4</option>`;
+                    html += `<option value="webm" ${data.video_format === 'webm' ? 'selected' : ''}>WEBM</option>`;
+                    html += `<option value="ogg" ${data.video_format === 'ogg' ? 'selected' : ''}>OGG</option>`;
+                    html += `</select></div></div>`;
+                    html += `<button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Display</button></form>`;
+                    html += `<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">`;
+                    data.videos.forEach(video => {
+                        html += `<div class="bg-white p-4 rounded-xl shadow-lg w-90 h-[380px] flex flex-col justify-between">`; 
+                        html += `<video controls class="w-full h-56 rounded-lg object-cover">`;
+                        html += `<source src="${video[0]}" type="video/${video[0].split('.').pop()}"></video>`;
+                        html += `<p class="mt-2 text-gray-700 text-center text-sm flex-1 overflow-hidden text-ellipsis">${video[1]}</p>`;
+                        html += `<div class="mt-2 flex justify-center">`; 
+                        html += `<a href="${video[0]}" target="_blank"><button class="py-1 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 w-full">View</button></a>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                    resultsDiv.innerHTML = html;
+                    document.getElementById('video-filter').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        scrapeData(new FormData(e.target));
+                    });
+                } else if (data.product_details) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.product_details.length} Products (Total: ${data.total})</h2>`;
+                    html += `<form id="product-filter" class="bg-white p-4 rounded-xl shadow-lg">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="data_type" value="ebay"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `<div class="mb-4"><label class="block text-lg font-semibold mb-2">Number of Products:</label>`;
+                    html += `<input type="number" name="num_items" value="${data.product_details.length}" min="1" max="${data.total}" class="w-full p-3 border border-gray-300 rounded-lg"></div>`;
+                    html += `<button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Display</button></form>`;
+                    html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">`;
+                    data.product_details.forEach(p => {
+                        html += `<div class="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">`;
+                        html += `<img src="${p.image_url}" alt="${p.title}" class="w-full h-48 object-cover rounded-lg" loading="lazy">`;
+                        html += `<h3 class="text-lg font-semibold mt-2 text-center">${p.title}</h3>`;
+                        html += `<p class="text-gray-600">${p.price}</p><p class="text-yellow-500">${p.rating}</p>`;
+                        html += `<a href="${p.link}" target="_blank" class="mt-2 text-blue-500 hover:underline"><button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Buy From eBay</button></a></div>`;
+                    });
+                    html += `</div>`;
+                    resultsDiv.innerHTML = html;
+                    document.getElementById('product-filter').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        scrapeData(new FormData(e.target));
+                    });
+                } else if (data.headlines) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.headlines.length} Headlines (Total: ${data.total})</h2>`;
+                    html += `<form id="headline-filter" class="bg-white p-4 rounded-xl shadow-lg">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="data_type" value="news"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `<div class="mb-4"><label class="block text-lg font-semibold mb-2">Number of Headlines:</label>`;
+                    html += `<input type="number" name="num_items" value="${data.headlines.length}" min="1" max="${data.total}" class="w-full p-3 border border-gray-300 rounded-lg"></div>`;
+                    html += `<button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Display</button></form>`;
+                    html += `<ul class="mt-4 list-disc pl-5 space-y-2">`;
+                    data.headlines.forEach(h => html += `<li class="text-gray-700">${h}</li>`);
+                    html += `</ul>`;
+                    resultsDiv.innerHTML = html;
+                    document.getElementById('headline-filter').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        scrapeData(new FormData(e.target));
+                    });
+                } else if (data.pdf_links) {
+                    let html = `<h2 class="text-2xl font-semibold mb-4">Found ${data.pdf_links.length} PDFs (Total: ${data.total})</h2>`;
+                    html += `<form id="pdf-filter" class="bg-white p-4 rounded-xl shadow-lg">`;
+                    html += `<input type="hidden" name="url" value="${formData.get('url')}"><input type="hidden" name="data_type" value="pdf"><input type="hidden" name="api_link" value="${formData.get('api_link')}">`;
+                    html += `<div class="mb-4"><label class="block text-lg font-semibold mb-2">Number of PDFs:</label>`;
+                    html += `<input type="number" name="num_items" value="${data.pdf_links.length}" min="1" max="${data.total}" class="w-full p-3 border border-gray-300 rounded-lg"></div>`;
+                    html += `<button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Display</button></form>`;
+                    html += `<ul class="space-y-2 mt-4">`;
+                    data.pdf_links.forEach(pdf => {
+                        html += `<li class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm hover:shadow-md">`;
+                        html += `<span class="text-blue-600 hover:underline cursor-pointer pdf-name" data-url="${pdf.url}">${pdf.name}</span>`;
+                        html += `<div class="pdf-buttons hidden space-x-2">`;
+                        html += `<a href="${pdf.url}" download class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Download</a>`;
+                        html += `<button onclick="extractInfo('${pdf.url}')" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Extract Info</button>`;
+                        html += `</div></li>`;
+                    });
+                    html += `</ul>`;
+                    resultsDiv.innerHTML = html;
+                    document.querySelectorAll('.pdf-name').forEach(pdf => {
+                        pdf.addEventListener('click', (e) => {
+                            document.querySelectorAll('.pdf-buttons').forEach(btn => btn.classList.add('hidden'));
+                            e.target.nextElementSibling.classList.remove('hidden');
+                        });
+                    });
+                    document.getElementById('pdf-filter').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        scrapeData(new FormData(e.target));
+                    });
+                }apiLinkContainer.classList.remove('hidden');
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                resultsDiv.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg text-center fade-in">Error3: ${error.message}</div>`;
+            }
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            scrapeData(new FormData(form));
+        });
+
+        sendApiLinkButton.addEventListener('click', async () => {
+            const apiLink = document.getElementById('api_link').value;
+            if (!apiLink) {
+                alert('Please enter a valid API link.');
+                return;
+            }
+
+            const formData = new FormData(form);
+            formData.append('api_link', apiLink);
+
+            try {
+                const response = await fetch('/send_to_api', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert(`Error1: ${data.error}`);
+                    return;
+                }
+
+                alert('Data successfully sent to the API.');
+            } catch (error) {
+                alert(`Error2: ${error.message}`);
+            }
+        });
+
+
+        document.getElementById('data_type').addEventListener('change', (e) => {
+            document.getElementById('url-label').textContent = e.target.value === 'movie' || e.target.value === 'book'|| e.target.value === 'ebay'? 'Enter Name:' : 'Enter URL:';
+        });
+
+        function extractInfo(pdfUrl) {
+            document.getElementById('loading').classList.remove('hidden');
+            fetch('/extract_pdf_info', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({'pdf_url': pdfUrl})
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.add('hidden');
+                if (data.success) {
+                    document.getElementById('pdfTitle').textContent = data.title;
+                    document.getElementById('pdfAuthor').textContent = data.author;
+                    document.getElementById('pdfPageCount').textContent = data.page_count;
+                    document.getElementById('pdfText').textContent = data.text || 'No text extracted.';
+                    document.getElementById('pdfInfoModal').classList.remove('hidden');
+                } else {
+                    alert('Error4: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.add('hidden');
+                alert('Error5: ' + error);
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('pdfInfoModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
