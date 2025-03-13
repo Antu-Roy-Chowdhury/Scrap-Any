@@ -18,13 +18,6 @@ A Flask-based web scraping application that extracts tables, images, Titles, vid
 
 
 ```markdown
-# Project Name
-
-[Add a brief description of your project here]
-
-## Project Structure
-
-```
 ├── static/              # Static files (CSS, JS, images, etc.)
 ├── templates/           # HTML templates for Flask
 └── venv/                # Virtual environment directory
@@ -44,8 +37,8 @@ Follow these steps to set up the project locally:
 
 1. **Clone the Repository**
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/Antu-Roy-Chowdhury/Scrap-Any
+cd Scrap-Any
 ```
 
 2. **Create and Activate Virtual Environment**
@@ -68,6 +61,7 @@ The project uses the following main packages (versions may vary):
 - selenium==4.29.0
 - python-dotenv==1.0.1
 - webdriver-manager==4.0.2
+- pdfplumber
 
 Install them using:
 ```bash
@@ -75,17 +69,7 @@ pip install -r requirements.txt
 ```
 Note: If a `requirements.txt` file isn't present, you can create one by running `pip freeze > requirements.txt` from an environment where the project works.
 
-4. **Environment Variables**
-Create a `.env` file in the root directory if required by your application:
-```bash
-touch .env
-```
-Add any necessary environment variables (e.g., API keys, database URLs) in this format:
-```
-KEY_NAME=value
-```
-
-5. **Run the Application**
+4. **Run the Application**
 ```bash
 python app.py
 ```
@@ -105,14 +89,6 @@ Note: Replace `app.py` with your main application file name if different.
 pip install --upgrade pip
 ```
 - Ensure your Python version matches the one used in development (3.x)
-
-## Contributing
-
-[Add contribution guidelines if applicable]
-
-## License
-
-[Add license information here]
 ```
 
 ### Notes:
@@ -120,5 +96,3 @@ pip install --upgrade pip
 2. **Requirements**: I inferred key dependencies from your `site-packages`. You might want to provide an exact `requirements.txt` file for precision.
 3. **Customization**: Replace placeholders (e.g., repo URL, project name, description) with your actual details.
 4. **gitignore**: You should add `venv/` and `.env` to your `.gitignore` file to avoid committing them.
-
-Let me know if you need any specific adjustments or additional sections!
