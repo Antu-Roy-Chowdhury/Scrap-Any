@@ -18,11 +18,6 @@ A Flask-based web scraping application that extracts tables, images, Titles, vid
 
 
 ```markdown
-# Project Name
-
-[Add a brief description of your project here]
-
-## Project Structure
 
 ```
 ├── static/              # Static files (CSS, JS, images, etc.)
